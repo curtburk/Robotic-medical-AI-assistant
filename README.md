@@ -119,9 +119,11 @@ curl -X POST http://reachy-mini.local:8000/api/apps/stop-current-app
 
 1. Power on the ZGX Nano and Reachy Mini
 2. Open a terminal on the ZGX Nano (or SSH in)
-3. Run `./start_services.sh` and wait for `✅ DEMO READY`
-4. Open the dashboard link in a browser on your laptop
-5. Verify the dashboard shows **System Online** with green checkmarks
+3. Change working directory to '/home/curtburk/Desktop/consent-agent/scripts'
+4. Run `./start_services.sh` and wait for `✅ DEMO READY`
+   4a. Note on step 5 of the startup checklist you will need to enter the Pollen Robotics ssh password ('root')
+5. Open the dashboard link in a browser on your laptop
+6. Verify the dashboard shows **System Online** with green checkmarks
 
 ### Talking Points
 
