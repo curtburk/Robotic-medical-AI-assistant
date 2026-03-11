@@ -101,10 +101,19 @@ ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 pollen@reachy-mini.local \
     "echo 'ZGX_API_URL=http://${ZGX_IP}:8090' | sudo tee /etc/environment > /dev/null" 2>/dev/null || \
     echo "         ⚠️  Could not update robot env (SSH). Using existing ZGX_API_URL."
 
+# Prime motors: start app briefly, then restart so motors are initialized
+echo "         Priming robot motors..."
+curl -sf -X POST http://reachy-mini.local:8000/api/apps/start-app/consent_agent_reachy > /dev/null 2>&1 || true
+sleep 5
+curl -sf -X POST http://reachy-mini.local:8000/api/apps/stop-current-app > /dev/null 2>&1 || true
+sleep 3
+
+# Real launch — motors should now be ready
+echo "         Starting app..."
 curl -sf -X POST http://reachy-mini.local:8000/api/apps/start-app/consent_agent_reachy > /dev/null 2>&1 || true
 
-# Give the app a moment to initialize and test ALSA
-sleep 5
+# Give the app time to wake up and greet
+sleep 8
 
 APP_STATUS=$(curl -sf http://reachy-mini.local:8000/api/apps/current-app-status 2>/dev/null) || APP_STATUS="unknown"
 echo "         ✅ Reachy app launched (status: $APP_STATUS)"
@@ -157,4 +166,4 @@ cleanup() {
 }
 
 trap cleanup INT TERM
-wait $DASHBOARD_PID
+wait $DASHBOARD_PIDrot
