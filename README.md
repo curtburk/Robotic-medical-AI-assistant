@@ -32,9 +32,9 @@ The robot greets patients, listens to their symptoms, asks follow-up questions, 
 
 ## Hardware
 
-- **HP ZGX Nano** — NVIDIA RTX GPU, runs all AI inference
-- **Reachy Mini** — Pollen Robotics robot with USB mic/speaker, head servos, antenna motors
-- Both on the same local network (192.168.10.x)
+- **HP ZGX Nano** - NVIDIA GB10 GPU, runs all AI inference
+- **Reachy Mini** - Pollen Robotics robot with USB mic/speaker, head servos, antenna motors
+- Both on the same local network (192.168.xx.x)
 
 ## Software Stack
 
