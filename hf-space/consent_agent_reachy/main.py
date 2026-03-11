@@ -62,61 +62,49 @@ logger = logging.getLogger("consent-agent")
 def expr_ready(reachy_mini):
     """Antennas up, head neutral — ready to listen."""
     try:
-        if create_head_pose:
-            head = create_head_pose(yaw=0, pitch=0, roll=0, degrees=True)
-            reachy_mini.goto_target(head=head, antennas=[0.3, -0.3], duration=0.5)
-        else:
-            reachy_mini.set_target(antennas=[0.3, -0.3])
+        head = create_head_pose(yaw=0, pitch=0, roll=0, degrees=True)
+        reachy_mini.goto_target(head=head, antennas=np.array([0.3, -0.3]), duration=0.5)
     except Exception as e:
-        logger.debug(f"Expression error: {e}")
+        logger.error(f"expr_ready error: {e}")
 
 
 def expr_listening(reachy_mini):
     """Slight head tilt, antennas forward — I'm paying attention."""
     try:
-        if create_head_pose:
-            head = create_head_pose(yaw=0, pitch=-5, roll=8, degrees=True)
-            reachy_mini.goto_target(head=head, antennas=[0.5, -0.5], duration=0.3)
-        else:
-            reachy_mini.set_target(antennas=[0.5, -0.5])
+        head = create_head_pose(yaw=0, pitch=-5, roll=8, degrees=True)
+        reachy_mini.goto_target(head=head, antennas=np.array([0.5, -0.5]), duration=0.3)
     except Exception as e:
-        logger.debug(f"Expression error: {e}")
+        logger.error(f"expr_listening error: {e}")
 
 
 def expr_thinking(reachy_mini):
     """Head tilted up slightly, antennas down — processing."""
     try:
-        if create_head_pose:
-            head = create_head_pose(yaw=0, pitch=8, roll=0, degrees=True)
-            reachy_mini.goto_target(head=head, antennas=[-0.2, 0.2], duration=0.4)
-        else:
-            reachy_mini.set_target(antennas=[-0.2, 0.2])
+        head = create_head_pose(yaw=0, pitch=8, roll=0, degrees=True)
+        reachy_mini.goto_target(head=head, antennas=np.array([-0.2, 0.2]), duration=0.4)
     except Exception as e:
-        logger.debug(f"Expression error: {e}")
+        logger.error(f"expr_thinking error: {e}")
 
 
 def expr_speaking(reachy_mini):
     """Gentle antenna bounce, head slightly forward — talking to you."""
     try:
-        if create_head_pose:
-            head = create_head_pose(yaw=0, pitch=-8, roll=0, degrees=True)
-            reachy_mini.goto_target(head=head, antennas=[0.4, -0.4], duration=0.3)
-        else:
-            reachy_mini.set_target(antennas=[0.4, -0.4])
+        head = create_head_pose(yaw=0, pitch=-8, roll=0, degrees=True)
+        reachy_mini.goto_target(head=head, antennas=np.array([0.4, -0.4]), duration=0.3)
     except Exception as e:
-        logger.debug(f"Expression error: {e}")
+        logger.error(f"expr_speaking error: {e}")
 
 
 def expr_antenna_wiggle(reachy_mini):
     """Quick antenna wiggle to show the robot is alive/happy."""
     try:
-        reachy_mini.goto_target(antennas=[0.6, -0.6], duration=0.2)
+        reachy_mini.goto_target(antennas=np.array([0.6, -0.6]), duration=0.2)
         time.sleep(0.25)
-        reachy_mini.goto_target(antennas=[-0.3, 0.3], duration=0.2)
+        reachy_mini.goto_target(antennas=np.array([-0.3, 0.3]), duration=0.2)
         time.sleep(0.25)
-        reachy_mini.goto_target(antennas=[0.3, -0.3], duration=0.2)
+        reachy_mini.goto_target(antennas=np.array([0.3, -0.3]), duration=0.2)
     except Exception as e:
-        logger.debug(f"Expression error: {e}")
+        logger.error(f"expr_wiggle error: {e}")
 
 
 # ---------------------------------------------------------------------------
@@ -257,10 +245,39 @@ class ConsentAgentReachy(ReachyMiniApp):
         reachy_mini.media.start_playing()
         time.sleep(0.5)
 
-        # Startup greeting — wiggle antennas and speak
+        # Wake up the robot — motors take time to become available after app start
+        logger.info("Waiting for motor control...")
+        INIT_HEAD_POSE = create_head_pose(yaw=0, pitch=0, roll=0, degrees=True)
+        awake = False
+        for attempt in range(30):  # Try for up to 60 seconds
+            try:
+                reachy_mini.goto_target(INIT_HEAD_POSE, antennas=np.array([0.0, 0.0]), duration=1.0)
+                time.sleep(1.5)
+                # Check if we can wiggle antennas (sign that motors are live)
+                reachy_mini.goto_target(antennas=np.array([0.3, -0.3]), duration=0.3)
+                time.sleep(0.5)
+                reachy_mini.goto_target(antennas=np.array([0.0, 0.0]), duration=0.3)
+                awake = True
+                logger.info(f"Robot motors active (attempt {attempt + 1}).")
+                break
+            except Exception as e:
+                logger.info(f"Motors not ready yet (attempt {attempt + 1})...")
+                time.sleep(2)
+
+        if awake:
+            # Play wake-up sound and wiggle
+            try:
+                reachy_mini.media.play_sound("wake_up.wav")
+                time.sleep(0.5)
+            except Exception:
+                pass
+            expr_antenna_wiggle(reachy_mini)
+            time.sleep(0.5)
+        else:
+            logger.warning("Motors did not respond after 60s — continuing without expressions.")
+
+        # Speak greeting
         logger.info("Ready! Greeting patient...")
-        expr_antenna_wiggle(reachy_mini)
-        time.sleep(0.3)
         expr_speaking(reachy_mini)
 
         # Generate and play greeting via TTS
