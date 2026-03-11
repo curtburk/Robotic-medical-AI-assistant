@@ -1,8 +1,8 @@
 # Reachy Mini Medical Triage Voice Agent
 
-A fully local, on-premise medical triage voice assistant running on an HP ZGX Nano and Pollen Robotics Reachy Mini robot. No cloud APIs — all inference happens on local hardware.
+A fully local, on-premise medical triage voice assistant running on an HP ZGX Nano and Pollen Robotics Reachy Mini robot. No cloud APIs - all inference happens on local hardware.
 
-The robot greets patients, listens to their symptoms, asks follow-up questions, and provides triage guidance — all through natural voice conversation with expressive antenna and head movements. A live dashboard displays the transcript in real time for clinical observation.
+The robot greets patients, listens to their symptoms, asks follow-up questions, and provides triage guidance - all through natural voice conversation with expressive antenna and head movements. A live dashboard displays the transcript in real time for clinical observation.
 
 ---
 
@@ -189,7 +189,7 @@ curl -X POST http://reachy-mini.local:8000/api/apps/start-app/consent_agent_reac
 
 - Check ALSA device: `ssh pollen@reachy-mini.local "arecord -D reachymini_audio_src -f S16_LE -r 16000 -c 2 -d 3 /tmp/test.wav"`
 - Check robot logs: `ssh pollen@reachy-mini.local "sudo journalctl -u reachy-mini-daemon -f --since 'now'"`
-- Check API health: `curl http://192.168.10.123:8090/health`
+- Check API health: `curl http://localhost:8090/health`
 
 ### Poor transcription accuracy
 
@@ -204,7 +204,7 @@ curl -X POST http://reachy-mini.local:8000/api/apps/start-app/consent_agent_reac
 
 ### Dashboard shows "Disconnected"
 
-- Verify the API is running: `curl http://192.168.10.123:8090/health`
+- Verify the API is running: `curl http://localhost:8090/health`
 - Check CORS is enabled in `zgx_ai_api.py`
 - Ensure the dashboard HTML can reach the API (same network, port 8090 open)
 
@@ -216,10 +216,17 @@ curl -X POST http://reachy-mini.local:8000/api/apps/start-app/consent_agent_reac
 
 ## Network Details
 
-| Device | IP | Ports |
-|--------|----|-------|
-| ZGX Nano | 192.168.10.123 | 8090 (API), 8080 (Dashboard) |
+| Device | Address | Ports |
+|--------|---------|-------|
+| ZGX Nano | Auto-detected by `start_services.sh` | 8090 (API), 8080 (Dashboard) |
 | Reachy Mini | reachy-mini.local | 8000 (Daemon API) |
+
+The launch script auto-detects the ZGX Nano's IP and updates the robot's `ZGX_API_URL` environment variable via SSH. No hardcoded IPs - just connect both devices to the same network and run the script.
+
+If the robot can't resolve the ZGX Nano, manually set the env var:
+```bash
+ssh pollen@reachy-mini.local "echo 'ZGX_API_URL=http://<ZGX_IP>:8090' | sudo tee /etc/environment"
+```
 
 ## Robot Access
 
