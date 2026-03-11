@@ -75,7 +75,7 @@ consent-agent/
 ### Prerequisites
 
 - Docker with NVIDIA GPU support on the ZGX Nano
-- Reachy Mini on the same network (default: `reachy-mini.local`)
+- Reachy Mini on the same network and powered on (default: `reachy-mini.local`)
 - Models downloaded to `~/Desktop/consent-agent/models/`
 
 ### Build (one time)
