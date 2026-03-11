@@ -7,7 +7,12 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$SCRIPT_DIR/.."
-ZGX_IP="192.168.10.123"
+
+# Auto-detect this machine's IP (prefer non-loopback, non-docker)
+ZGX_IP=$(hostname -I | awk '{print $1}')
+if [ -z "$ZGX_IP" ]; then
+    ZGX_IP="localhost"
+fi
 
 echo ""
 echo "══════════════════════════════════════════════"
@@ -89,6 +94,13 @@ echo ""
 
 # ── Step 5: Start Reachy app ──
 echo "  [5/6] Starting Reachy Mini app..."
+
+# Update the robot's API URL to point to this machine
+echo "         Setting ZGX_API_URL=http://${ZGX_IP}:8090 on robot..."
+ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 pollen@reachy-mini.local \
+    "echo 'ZGX_API_URL=http://${ZGX_IP}:8090' | sudo tee /etc/environment > /dev/null" 2>/dev/null || \
+    echo "         ⚠️  Could not update robot env (SSH). Using existing ZGX_API_URL."
+
 curl -sf -X POST http://reachy-mini.local:8000/api/apps/start-app/consent_agent_reachy > /dev/null 2>&1 || true
 
 # Give the app a moment to initialize and test ALSA
