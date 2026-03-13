@@ -1,8 +1,8 @@
 # Reachy Mini Medical Triage Voice Agent
 
-A fully local, on-premise medical triage voice assistant running on an HP ZGX Nano and Pollen Robotics Reachy Mini robot. No cloud APIs — all inference happens on local hardware.
+A fully local, on-premise medical triage voice assistant running on an HP ZGX Nano and Pollen Robotics Reachy Mini robot. No cloud APIs - all inference happens on local hardware.
 
-The robot greets patients, listens to their symptoms, asks follow-up questions, and provides triage guidance — all through natural voice conversation with expressive antenna and head movements. A live dashboard displays the transcript in real time for clinical observation.
+The robot greets patients, listens to their symptoms, asks follow-up questions, and provides triage guidance - all through natural voice conversation with expressive antenna and head movements. A live dashboard displays the transcript in real time for clinical observation.
 
 ---
 
@@ -32,8 +32,8 @@ The robot greets patients, listens to their symptoms, asks follow-up questions, 
 
 ## Hardware
 
-- **HP ZGX Nano** — NVIDIA RTX GPU, runs all AI inference
-- **Reachy Mini** — Pollen Robotics robot with USB mic/speaker, head servos, antenna motors
+- **HP ZGX Nano** - NVIDIA RTX GPU, runs all AI inference
+- **Reachy Mini** - Pollen Robotics robot with USB mic/speaker, head servos, antenna motors
 - Both on the same local network (192.168.10.x)
 
 ## Software Stack
@@ -131,7 +131,7 @@ curl -X POST http://reachy-mini.local:8000/api/apps/stop-current-app
 
 ### Talking Points
 
-> "This is a fully local medical triage voice agent. There are no cloud APIs involved — all speech recognition, language understanding, and speech synthesis run on this HP ZGX Nano using NVIDIA GPU acceleration. The robot uses a quantized Llama 3.1 model for medical reasoning, Whisper for speech recognition, and Piper for text-to-speech. Let me show you how it works."
+> "This is a fully local medical triage voice agent. There are no cloud APIs involved - all speech recognition, language understanding, and speech synthesis run on this HP ZGX Nano using NVIDIA GPU acceleration. The robot uses a quantized Llama 3.1 model for medical reasoning, Whisper for speech recognition, and Piper for text-to-speech. Let me show you how it works."
 
 ### Demo Conversation
 
@@ -139,7 +139,7 @@ The robot will greet the patient on startup: *"Hi there! I'm your medical triage
 
 **You say:** "I've been having really bad back pain for about four days."
 
-> *Expected response: The assistant will acknowledge the back pain, note the 4-day duration, and ask follow-up questions — likely about severity, location, and what makes it better or worse.*
+> *Expected response: The assistant will acknowledge the back pain, note the 4-day duration, and ask follow-up questions - likely about severity, location, and what makes it better or worse.*
 
 **You say:** "It's about a 7 out of 10 on the pain scale. It's in my lower back."
 
@@ -151,7 +151,7 @@ The robot will greet the patient on startup: *"Hi there! I'm your medical triage
 
 **You say:** "Should I go to the emergency room?"
 
-> *Expected response: The assistant will provide guidance based on the symptoms described — for 4-day back pain from lifting, it will likely recommend seeing a doctor but not necessarily the ER unless there are red-flag symptoms.*
+> *Expected response: The assistant will provide guidance based on the symptoms described - for 4-day back pain from lifting, it will likely recommend seeing a doctor but not necessarily the ER unless there are red-flag symptoms.*
 
 **You say:** "Okay, thank you for your help."
 
@@ -163,16 +163,16 @@ While the conversation happens, point out:
 - The **live transcript** appearing in real time on the dashboard
 - The **Patient ID** assigned to the session
 - The **System Status** panel showing all components are healthy
-- The **Export** buttons — "Export as Medical Record" creates a timestamped text file that could be attached to a patient's chart
+- The **Export** buttons - "Export as Medical Record" creates a timestamped text file that could be attached to a patient's chart
 
 ### Key Points for the Audience
 
-- **Fully on-premise** — no data leaves the local network. Critical for healthcare (HIPAA), government, and defense use cases.
-- **Air-gapped capable** — works with no internet connection after initial setup.
-- **Sub-7-second response time** — natural conversational pace.
-- **Medically appropriate responses** — the LLM provides triage-level guidance, not diagnosis.
-- **Expressive robot** — antenna and head movements give visual feedback on the robot's state (listening, thinking, speaking).
-- **Live dashboard** — clinicians can observe the conversation in real time and export records.
+- **Fully on-premise** - no data leaves the local network. Critical for healthcare (HIPAA), government, and defense use cases.
+- **Air-gapped capable** - works with no internet connection after initial setup.
+- **Sub-7-second response time** - natural conversational pace.
+- **Medically appropriate responses** - the LLM provides triage-level guidance, not diagnosis.
+- **Expressive robot** - antenna and head movements give visual feedback on the robot's state (listening, thinking, speaking).
+- **Live dashboard** - clinicians can observe the conversation in real time and export records.
 
 ---
 
@@ -216,7 +216,7 @@ curl -X POST http://reachy-mini.local:8000/api/apps/start-app/consent_agent_reac
 
 ### Left antenna overload error
 
-- This is a hardware issue — the antenna motor is jammed or hitting resistance
+- This is a hardware issue - the antenna motor is jammed or hitting resistance
 - The voice agent will continue to work; the error is non-fatal
 - Physically check the antenna for obstructions
 
@@ -239,7 +239,7 @@ curl -X POST http://reachy-mini.local:8000/api/apps/start-app/consent_agent_reac
 | ZGX Nano | Auto-detected by `start_services.sh` | 8090 (API), 8080 (Dashboard) |
 | Reachy Mini | reachy-mini.local | 8000 (Daemon API) |
 
-The launch script auto-detects the ZGX Nano's IP and updates the robot's `ZGX_API_URL` environment variable via SSH. No hardcoded IPs — just connect both devices to the same network and run the script.
+The launch script auto-detects the ZGX Nano's IP and updates the robot's `ZGX_API_URL` environment variable via SSH. No hardcoded IPs - just connect both devices to the same network and run the script.
 
 If the robot can't resolve the ZGX Nano, manually set the env var:
 ```bash
