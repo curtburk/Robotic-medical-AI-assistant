@@ -1,8 +1,8 @@
 # Reachy Mini Medical Triage Voice Agent
 
-A fully local, on-premise medical triage voice assistant running on an HP ZGX Nano and Pollen Robotics Reachy Mini robot. No cloud APIs - all inference happens on local hardware.
+A fully local, on-premise medical triage voice assistant running on an HP ZGX Nano and Pollen Robotics Reachy Mini robot. No cloud APIs — all inference happens on local hardware.
 
-The robot greets patients, listens to their symptoms, asks follow-up questions, and provides triage guidance - all through natural voice conversation with expressive antenna and head movements. A live dashboard displays the transcript in real time for clinical observation.
+The robot greets patients, listens to their symptoms, asks follow-up questions, and provides triage guidance — all through natural voice conversation with expressive antenna and head movements. A live dashboard displays the transcript in real time for clinical observation.
 
 ---
 
@@ -32,9 +32,9 @@ The robot greets patients, listens to their symptoms, asks follow-up questions, 
 
 ## Hardware
 
-- **HP ZGX Nano** - NVIDIA GB10 GPU, runs all AI inference
-- **Reachy Mini** - Pollen Robotics robot with USB mic/speaker, head servos, antenna motors
-- Both on the same local network (192.168.xx.x)
+- **HP ZGX Nano** — NVIDIA RTX GPU, runs all AI inference
+- **Reachy Mini** — Pollen Robotics robot with USB mic/speaker, head servos, antenna motors
+- Both on the same local network (192.168.10.x)
 
 ## Software Stack
 
@@ -75,8 +75,14 @@ consent-agent/
 ### Prerequisites
 
 - Docker with NVIDIA GPU support on the ZGX Nano
-- Reachy Mini on the same network and powered on (default: `reachy-mini.local`)
+- Reachy Mini on the same network (default: `reachy-mini.local`)
 - Models downloaded to `~/Desktop/consent-agent/models/`
+- SSH key copied to the robot (one-time setup, required for the launch script to configure the robot automatically):
+
+```bash
+ssh-copy-id pollen@reachy-mini.local
+# password: root
+```
 
 ### Build (one time)
 
@@ -119,11 +125,9 @@ curl -X POST http://reachy-mini.local:8000/api/apps/stop-current-app
 
 1. Power on the ZGX Nano and Reachy Mini
 2. Open a terminal on the ZGX Nano (or SSH in)
-3. Change working directory to '/home/curtburk/Desktop/consent-agent/scripts'
-4. Run `./start_services.sh` and wait for `✅ DEMO READY`
-   4a. Note on step 5 of the startup checklist you will need to enter the Pollen Robotics ssh password ('root')
-5. Open the dashboard link in a browser on your laptop
-6. Verify the dashboard shows **System Online** with green checkmarks
+3. Run `./start_services.sh` and wait for `✅ DEMO READY`
+4. Open the dashboard link in a browser on your laptop
+5. Verify the dashboard shows **System Online** with green checkmarks
 
 ### Talking Points
 
@@ -216,6 +220,18 @@ curl -X POST http://reachy-mini.local:8000/api/apps/start-app/consent_agent_reac
 - The voice agent will continue to work; the error is non-fatal
 - Physically check the antenna for obstructions
 
+### "Could not update robot env (SSH)" in start_services.sh
+
+- The script needs passwordless SSH to configure the robot's API URL automatically
+- Run `ssh-copy-id pollen@reachy-mini.local` (password: `root`) once on your machine
+- If you can't set up SSH keys, manually configure the robot:
+  ```bash
+  ssh pollen@reachy-mini.local
+  echo 'ZGX_API_URL=http://<YOUR_ZGX_IP>:8090' | sudo tee /etc/environment
+  exit
+  ```
+- Then restart the app: `curl -X POST http://reachy-mini.local:8000/api/apps/stop-current-app && sleep 3 && curl -X POST http://reachy-mini.local:8000/api/apps/start-app/consent_agent_reachy`
+
 ## Network Details
 
 | Device | Address | Ports |
@@ -223,7 +239,7 @@ curl -X POST http://reachy-mini.local:8000/api/apps/start-app/consent_agent_reac
 | ZGX Nano | Auto-detected by `start_services.sh` | 8090 (API), 8080 (Dashboard) |
 | Reachy Mini | reachy-mini.local | 8000 (Daemon API) |
 
-The launch script auto-detects the ZGX Nano's IP and updates the robot's `ZGX_API_URL` environment variable via SSH. No hardcoded IPs - just connect both devices to the same network and run the script.
+The launch script auto-detects the ZGX Nano's IP and updates the robot's `ZGX_API_URL` environment variable via SSH. No hardcoded IPs — just connect both devices to the same network and run the script.
 
 If the robot can't resolve the ZGX Nano, manually set the env var:
 ```bash
