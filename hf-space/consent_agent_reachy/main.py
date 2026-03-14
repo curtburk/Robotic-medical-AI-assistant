@@ -30,7 +30,13 @@ except ImportError:
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
-API_URL = os.getenv("ZGX_API_URL", "http://192.168.10.123:8090")
+_env_api_url = os.getenv("ZGX_API_URL")
+if _env_api_url:
+    API_URL = _env_api_url
+    _API_URL_SOURCE = "ZGX_API_URL env var"
+else:
+    API_URL = None
+    _API_URL_SOURCE = "NOT SET"
 
 # ALSA device for the Reachy Mini mic
 ALSA_DEVICE = os.getenv("ALSA_DEVICE", "reachymini_audio_src")
@@ -225,8 +231,23 @@ class ConsentAgentReachy(ReachyMiniApp):
 
     def run(self, reachy_mini: ReachyMini, stop_event: threading.Event):
         logger.info("=" * 60)
-        logger.info("CONSENT AGENT — MEDICAL TRIAGE")
+        logger.info("CONSENT AGENT - MEDICAL TRIAGE")
         logger.info("=" * 60)
+        logger.info(f"  API URL:    {API_URL} (source: {_API_URL_SOURCE})")
+        logger.info(f"  ALSA:       {ALSA_DEVICE} ({ALSA_CHANNELS}ch, {SAMPLE_RATE}Hz)")
+        logger.info(f"  VAD:        threshold={SILENCE_THRESHOLD}, silence_chunks={SILENCE_CHUNKS}, max={MAX_CHUNKS}s")
+        logger.info("=" * 60)
+
+        if API_URL is None:
+            logger.error("=" * 60)
+            logger.error("  ZGX_API_URL is NOT SET!")
+            logger.error("  The app does not know where the AI API is running.")
+            logger.error("")
+            logger.error("  Fix: run start_services.sh which auto-configures this,")
+            logger.error("  or manually patch main.py with the correct IP:")
+            logger.error("    sed -i 's|API_URL = None|API_URL = \"http://<ZGX_IP>:8090\"|' main.py")
+            logger.error("=" * 60)
+            return
 
         if not wait_for_api():
             logger.error("Cannot reach API — exiting.")
