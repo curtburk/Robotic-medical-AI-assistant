@@ -31,8 +31,11 @@ DASHBOARD_PORT=8080
 APP_NAME="consent_agent_reachy"
 MAIN_PY_PATH="/venvs/apps_venv/lib/python3.12/site-packages/consent_agent_reachy/main.py"
 
-# Auto-detect this machine's IP
-ZGX_IP=$(hostname -I | awk '{print $1}')
+# Auto-detect this machine's IP (prefer route-based, fallback to hostname)
+ZGX_IP=$(ip route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src") print $(i+1)}')
+if [ -z "$ZGX_IP" ]; then
+    ZGX_IP=$(hostname -I | awk '{print $1}')
+fi
 if [ -z "$ZGX_IP" ]; then
     echo "  ❌ Could not detect this machine's IP address."
     echo "     This machine does not appear to be connected to a network."
@@ -304,28 +307,31 @@ echo ""
 echo "  [5/7] Configuring robot to talk to this machine..."
 echo "         Target API: http://${ZGX_IP}:${API_PORT}"
 
-# The Reachy Mini runs our Python app, which has the API URL
-# hardcoded in main.py. When you move to a new network, the
-# IP changes, so we patch main.py on the robot automatically.
+# The Reachy Mini runs our Python app, which needs the API URL.
+# The GitHub version has API_URL = None (no fallback).
+# The local version may have a previously patched IP.
+# Either way, we replace the entire API_URL line with the correct IP.
 
-CURRENT_URL=$(ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 ${ROBOT_USER}@${ROBOT_IP} \
-    "grep -oP 'http://[0-9.]+:${API_PORT}' ${MAIN_PY_PATH} 2>/dev/null | head -1" 2>/dev/null || echo "unknown")
-echo "         Robot currently points to: $CURRENT_URL"
+CURRENT_LINE=$(ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 ${ROBOT_USER}@${ROBOT_IP} \
+    "grep 'API_URL' ${MAIN_PY_PATH} 2>/dev/null | head -1" 2>/dev/null || echo "unknown")
+echo "         Robot currently has: $CURRENT_LINE"
 
-if [ "$CURRENT_URL" = "http://${ZGX_IP}:${API_PORT}" ]; then
+EXPECTED_LINE="API_URL = \"http://${ZGX_IP}:${API_PORT}\""
+
+if echo "$CURRENT_LINE" | grep -q "http://${ZGX_IP}:${API_PORT}"; then
     echo "         ✅ Already correct, no change needed"
 else
     echo "         🔧 Updating robot to point to http://${ZGX_IP}:${API_PORT}..."
     ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 ${ROBOT_USER}@${ROBOT_IP} \
-        "sed -i 's|http://[0-9.]*:${API_PORT}|http://${ZGX_IP}:${API_PORT}|g' ${MAIN_PY_PATH} && \
+        "sed -i '/^API_URL\s*=/c\\API_URL = \"http://${ZGX_IP}:${API_PORT}\"' ${MAIN_PY_PATH} && \
          rm -rf /venvs/apps_venv/lib/python3.12/site-packages/consent_agent_reachy/__pycache__" 2>/dev/null
 
     # Verify the change took effect
-    NEW_URL=$(ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 ${ROBOT_USER}@${ROBOT_IP} \
-        "grep -oP 'http://[0-9.]+:${API_PORT}' ${MAIN_PY_PATH} 2>/dev/null | head -1" 2>/dev/null || echo "unknown")
+    NEW_LINE=$(ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 ${ROBOT_USER}@${ROBOT_IP} \
+        "grep 'API_URL' ${MAIN_PY_PATH} 2>/dev/null | head -1" 2>/dev/null || echo "unknown")
 
-    if [ "$NEW_URL" = "http://${ZGX_IP}:${API_PORT}" ]; then
-        echo "         ✅ Robot updated to: $NEW_URL"
+    if echo "$NEW_LINE" | grep -q "http://${ZGX_IP}:${API_PORT}"; then
+        echo "         ✅ Robot updated to: http://${ZGX_IP}:${API_PORT}"
     else
         echo "         ❌ FAILED to update the robot's API URL."
         echo ""
@@ -333,11 +339,11 @@ else
         echo "            The robot needs to know this machine's IP address to send"
         echo "            audio for processing. When you change networks, the IP changes."
         echo ""
-        echo "            What the robot has: $NEW_URL"
-        echo "            What it should be:  http://${ZGX_IP}:${API_PORT}"
+        echo "            What the robot has: $NEW_LINE"
+        echo "            What it should be:  API_URL = \"http://${ZGX_IP}:${API_PORT}\""
         echo ""
         echo "            Manual fix (run this on the ZGX):"
-        echo "              ssh ${ROBOT_USER}@${ROBOT_IP} \"sed -i 's|http://[0-9.]*:${API_PORT}|http://${ZGX_IP}:${API_PORT}|g' ${MAIN_PY_PATH}\""
+        echo "              ssh ${ROBOT_USER}@${ROBOT_IP} \"sed -i '/^API_URL/c\\\\API_URL = \\\"http://${ZGX_IP}:${API_PORT}\\\"' ${MAIN_PY_PATH}\""
         exit 1
     fi
 fi
