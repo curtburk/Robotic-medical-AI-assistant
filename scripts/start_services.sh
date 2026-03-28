@@ -168,8 +168,8 @@ fi
 
 # Check 7: App installed on robot
 if [ -n "$ROBOT_IP" ]; then
-    APP_LIST=$(curl -sf "http://${ROBOT_IP}:8000/api/apps/list" 2>/dev/null || echo "")
-    if echo "$APP_LIST" | grep -q "$APP_NAME"; then
+    APP_FOUND=$(curl -sf "http://${ROBOT_IP}:8000/api/apps/list-available" 2>/dev/null | python3 -c "import sys,json; apps=json.load(sys.stdin); print('yes' if any(a.get('name')=='consent_agent_reachy' for a in apps) else 'no')" 2>/dev/null || echo "no")
+    if [ "$APP_FOUND" = "yes" ]; then
         echo "         ✅ App '${APP_NAME}' installed on robot"
     else
         echo "         ⚠️  App '${APP_NAME}' not found on robot. Installing..."
@@ -185,8 +185,8 @@ if [ -n "$ROBOT_IP" ]; then
             ${ROBOT_USER}@${ROBOT_IP}:/venvs/apps_venv/lib/python3.12/site-packages/consent_agent_reachy/__init__.py 2>/dev/null || true
 
         # Verify it worked
-        APP_LIST=$(curl -sf "http://${ROBOT_IP}:8000/api/apps/list" 2>/dev/null || echo "")
-        if echo "$APP_LIST" | grep -q "$APP_NAME"; then
+        APP_FOUND=$(curl -sf "http://${ROBOT_IP}:8000/api/apps/list-available" 2>/dev/null | python3 -c "import sys,json; apps=json.load(sys.stdin); print('yes' if any(a.get('name')=='consent_agent_reachy' for a in apps) else 'no')" 2>/dev/null || echo "no")
+        if [ "$APP_FOUND" = "yes" ]; then
             echo "         ✅ App installed successfully"
         else
             echo "         ❌ App installation failed."
@@ -209,6 +209,11 @@ fi
 echo ""
 
 # ══════════════════════════════════════════════════════════
+# Skip container restart if already running and healthy
+if curl -sf http://localhost:8090/health | python3 -c "import sys,json; d=json.load(sys.stdin); exit(0 if d.get('whisper') and d.get('llm') and d.get('tts') else 1)" 2>/dev/null; then
+    echo "  [1-3] ✅ Container already running and healthy, skipping restart"
+    echo ""
+else
 # STEP 1: Clean up
 # ══════════════════════════════════════════════════════════
 
@@ -227,7 +232,6 @@ echo ""
 
 echo "  [2/7] Starting AI API container..."
 docker run --rm -d --name zgx-ai-api --gpus all --network host \
-    -e WHISPER_MODEL_SIZE=small \
     -v "$PROJECT_DIR/models:/models" \
     consent-agent:latest > /dev/null 2>&1
 echo "         ✅ Container started"
@@ -237,7 +241,7 @@ echo ""
 # STEP 3: Wait for API
 # ══════════════════════════════════════════════════════════
 
-echo "  [3/7] Waiting for LLM to load (this takes ~90 seconds)..."
+echo "  [3/7] Waiting for models to load (this takes ~90 seconds)..."
 SECONDS=0
 while true; do
     if curl -sf http://localhost:${API_PORT}/health > /dev/null 2>&1; then
@@ -250,7 +254,7 @@ while true; do
         if [ "$LLM_OK" = "True" ] && [ "$WHISPER_OK" = "True" ] && [ "$TTS_OK" = "True" ]; then
             echo ""
             echo "         ✅ All systems ready (${SECONDS}s)"
-            echo "            Whisper: ✓ ${WHISPER_MODEL}"
+            echo "            Whisper: ✓ ${STT_MODEL}"
             echo "            LLM:     ✓ online"
             echo "            TTS:     ✓ online"
             break
@@ -258,14 +262,14 @@ while true; do
             printf "\r         ⏳ API up but waiting for components... (%ds)" $SECONDS
         fi
     else
-        printf "\r         ⏳ Loading LLM... (%ds)                        " $SECONDS
+        printf "\r         ⏳ Loading models... (%ds)                        " $SECONDS
     fi
 
     if [ $SECONDS -gt 300 ]; then
         echo ""
         echo "         ❌ Timed out after 5 minutes."
         echo ""
-        echo "            The AI API container started but the LLM did not load."
+        echo "            The AI API container started but the models did not load."
         echo "            This usually means the GPU ran out of memory."
         echo ""
         echo "            Debug steps:"
@@ -279,6 +283,7 @@ while true; do
 done
 echo ""
 
+fi
 # ══════════════════════════════════════════════════════════
 # STEP 4: Start dashboard
 # ══════════════════════════════════════════════════════════
@@ -446,7 +451,7 @@ echo ""
 echo "  Configuration:"
 echo "     ZGX Nano:  ${ZGX_IP} (API: ${API_PORT}, Dashboard: ${DASHBOARD_PORT})"
 echo "     Robot:     ${ROBOT_IP} (using API at http://${ZGX_IP}:${API_PORT})"
-echo "     Whisper:   ${WHISPER_MODEL}"
+echo "     STT:      ${STT_MODEL}"
 echo ""
 echo "  Speak to the Reachy Mini. The transcript"
 echo "  will appear on the dashboard in real time."
