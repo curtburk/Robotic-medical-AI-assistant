@@ -1,6 +1,8 @@
 # Reachy Mini Medical Triage Voice Agent
 
-![Dashboard screenshot] (dashboard_screenshot.png)
+![Dashboard screenshot] (/Robotic-medical-AI-assistant/dashboard_screenshot.png)
+
+
 A fully local, on-premise medical triage voice assistant running on an HP ZGX Nano and Pollen Robotics Reachy Mini robot. No cloud APIs - all inference happens on local hardware.
 
 The robot greets patients, listens to their symptoms, asks follow-up questions, and provides triage guidance through natural voice conversation with expressive antenna and head movements. A live dashboard displays the transcript in real time for clinical observation.
