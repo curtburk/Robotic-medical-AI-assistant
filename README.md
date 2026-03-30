@@ -15,7 +15,7 @@ The robot greets patients, listens to their symptoms, asks follow-up questions, 
 ┌──────────────────────┐         HTTP          ┌─────────────────────────────────────┐
 │     Reachy Mini      │ ◄──────────────────►  │       HP ZGX Nano (Docker)          │
 │                      │                        │                                     │
-│  Mic (ALSA) ─────────┤── POST /process ──────►│  whisper.cpp (STT, GPU)          │
+│  Mic (ALSA) ─────────┤── POST /process ──────►│  whisper.cpp (STT, GPU)             │
 │                      │                        │  Llama-3.1-8B-Instruct-AWQ (LLM)   │
 │  Speaker ◄───────────┤◄── WAV response ──────│  Piper TTS (speech synthesis)       │
 │                      │                        │                                     │
@@ -30,15 +30,17 @@ The robot records audio from its onboard mic, sends it to the ZGX Nano over HTTP
 | Stage | Time | Notes |
 |-------|------|-------|
 | Recording | ~3-4s | VAD-based chunking, stops on silence |
-| Whisper STT | ~2-3s | large-v3-turbo on CPU, int8 |
-| LLM response | ~0.5-1s | AWQ INT4, Marlin kernels |
-| Piper TTS | <1s | aarch64 binary |
-| **Total** | **~5-7s** | From end of speech to hearing response |
+| whisper.cpp STT | ~0.05-0.2s | Whisper small on GPU via CUDA (sm_121) |
+| LLM response | ~0.9-1.3s | AWQ INT4, Marlin kernels via vLLM |
+| Piper TTS | ~0.5-0.7s | aarch64 binary |
+| **Total** | **~1.5-2s** | From end of speech to hearing response |
+
+Previously, STT ran on CPU via faster-whisper (~2-3s per utterance). Switching to whisper.cpp compiled with CUDA for the GB10's Blackwell GPU (compute capability 12.1) reduced STT latency by ~50x and cut total pipeline time from 5-8 seconds to under 2 seconds.
 
 ## Hardware
 
-- **HP ZGX Nano** - NVIDIA GPU, runs all AI inference inside a Docker container
-- **Reachy Mini** - Pollen Robotics robot with USB mic/speaker, head servos, and antenna motors. Runs Linux internally and is controlled via SSH and an HTTP API on port 8000.
+- **HP ZGX Nano** — NVIDIA GB10 Grace Blackwell, ARM64 (aarch64), 128GB unified memory, compute capability 12.1 (sm_121). Runs all AI inference inside a Docker container.
+- **Reachy Mini** — Pollen Robotics robot with USB mic/speaker, head servos, and antenna motors. Runs Linux internally and is controlled via SSH and an HTTP API on port 8000.
 
 Both devices must be on the same local network. The launch script auto-detects IPs and configures everything.
 
@@ -46,20 +48,20 @@ Both devices must be on the same local network. The launch script auto-detects I
 
 | Component | Technology | Details |
 |-----------|-----------|---------|
-| STT | faster-whisper (large-v3-turbo) | CTranslate2, CPU int8, Silero VAD |
+| STT | whisper.cpp (Whisper small) | Compiled from source with CUDA for sm_121, GPU-accelerated |
 | LLM | Llama-3.1-8B-Instruct-AWQ-INT4 | vLLM with AWQ Marlin kernels |
 | TTS | Piper | en_US-lessac-medium voice |
-| API | FastAPI | Runs inside Docker on ZGX Nano |
+| API | FastAPI | Orchestrator on port 8090, routes to whisper-server and vLLM |
 | Robot App | reachy-mini SDK | Python app running on the robot |
-| Dashboard | Vanilla HTML/JS | Polls API for live transcript |
+| Dashboard | Vanilla HTML/JS | Polls API for live transcript with token counter |
 
 ## Directory Structure
 
 ```
 consent-agent/
 ├── docker/
-│   ├── Dockerfile.api          # Docker image for the AI API
-│   └── zgx_ai_api.py           # FastAPI server (STT + LLM + TTS)
+│   ├── Dockerfile.api          # Docker image (builds whisper.cpp with CUDA + vLLM + Piper)
+│   └── zgx_ai_api.py           # FastAPI orchestrator (routes to whisper-server + vLLM)
 ├── hf-space/
 │   ├── consent_agent_reachy/
 │   │   └── main.py             # Reachy Mini app (recording, playback, expressions)
@@ -92,16 +94,16 @@ wget -O models/piper-tts/en_US-lessac-medium.onnx https://huggingface.co/rhasspy
 wget -O models/piper-tts/en_US-lessac-medium.onnx.json https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx.json
 ```
 
-Whisper models are downloaded automatically when the Docker container builds.
+Whisper GGML models are downloaded automatically when the Docker image builds. whisper.cpp is compiled from source with CUDA support inside the container.
 
 ### 2. Build the Docker Image (one time)
 
 ```bash
 cd ~/Desktop/consent-agent/docker
-docker build -t consent-agent:latest -f Dockerfile.api .
+docker build --no-cache -t consent-agent:latest -f Dockerfile.api .
 ```
 
-This takes ~5 minutes and only needs to be done once.
+This takes ~10 minutes on first build (compiling whisper.cpp CUDA kernels for sm_121) and only needs to be done once. Subsequent builds with code-only changes are fast.
 
 ### 3. Set Up SSH to the Robot (one time)
 
@@ -121,7 +123,7 @@ cd ~/Desktop/consent-agent/scripts
 ./start_services.sh
 ```
 
-The script runs preflight checks, starts all services, configures the robot, and prints a clickable dashboard link when everything is ready. It takes about 2 minutes (mostly waiting for the LLM to load).
+The script runs preflight checks, starts all services, configures the robot, and prints a clickable dashboard link when everything is ready. It takes about 2 minutes (mostly waiting for the LLM to load). If the container is already running and healthy, Steps 1-3 are skipped automatically.
 
 When you see `DEMO READY`, open the dashboard URL and speak to the robot.
 
@@ -162,7 +164,7 @@ If the script can't find the robot (some networks block device discovery), it wi
 
 ### Talking Points
 
-> "This is a fully local medical triage voice agent. There are no cloud APIs involved - all speech recognition, language understanding, and speech synthesis run on this HP ZGX Nano using NVIDIA GPU acceleration. The robot uses a quantized Llama 3.1 model for medical reasoning, Whisper for speech recognition, and Piper for text-to-speech. Let me show you how it works."
+> "This is a fully local medical triage voice agent. There are no cloud APIs involved - all speech recognition, language understanding, and speech synthesis run on this HP ZGX Nano using NVIDIA GPU acceleration. The robot uses a quantized Llama 3.1 model for medical reasoning, Whisper for speech recognition running on GPU via whisper.cpp, and Piper for text-to-speech. Total response time is under two seconds. Let me show you how it works."
 
 ### Demo Conversation
 
@@ -190,16 +192,17 @@ The robot greets on startup: *"Hi there! I'm your medical triage assistant. How 
 
 ### Dashboard Walkthrough
 
-While the conversation happens, point out the live transcript, Patient ID, System Status panel, and Export buttons. "Export as Medical Record" creates a timestamped text file.
+While the conversation happens, point out the live transcript, Patient ID, token consumption counter, System Status panel, and Export buttons. "Export as Medical Record" creates a timestamped text file.
 
 ### Key Points
 
-- **Fully on-premise** - no data leaves the local network. Critical for HIPAA, government, and defense.
-- **Air-gapped capable** - works without internet after initial setup.
-- **Sub-7-second response time** - natural conversational pace.
-- **Medically appropriate responses** - triage-level guidance, not diagnosis.
-- **Expressive robot** - antenna and head movements show listening, thinking, and speaking states.
-- **Live dashboard** - real-time transcript with export for clinical records.
+- **Fully on-premise** — no data leaves the local network. Critical for HIPAA, government, and defense.
+- **Air-gapped capable** — works without internet after initial setup.
+- **Sub-2-second response time** — near-instant conversational pace.
+- **GPU-accelerated STT** — whisper.cpp compiled with CUDA for Blackwell (sm_121), 50x faster than CPU.
+- **Medically appropriate responses** — triage-level guidance, not diagnosis.
+- **Expressive robot** — antenna and head movements show listening, thinking, and speaking states.
+- **Live dashboard** — real-time transcript with token counter and export for clinical records.
 
 ---
 
@@ -318,10 +321,12 @@ Check which Whisper model is loaded:
 curl -s http://localhost:8090/health | python3 -c "import sys,json; print(json.load(sys.stdin))"
 ```
 
-`large-v3-turbo` is recommended for accuracy. `small` is faster but less accurate with medical terminology. Override at container start:
+The Docker image includes both `small` and `base` GGML models. To switch models, update the `WHISPER_MODEL` environment variable to point to a different GGML file:
 ```bash
-docker run ... -e WHISPER_MODEL_SIZE=large-v3-turbo ...
+docker run ... -e WHISPER_MODEL=/opt/whisper.cpp/models/ggml-base.bin ...
 ```
+
+For even better accuracy, download the `large-v3-turbo` GGML model and mount it into the container.
 
 ### Dashboard shows "Disconnected"
 
@@ -363,7 +368,7 @@ Web UI:    http://reachy-mini.local (robot dashboard, WiFi settings, app managem
 The robot's daemon manages app lifecycle. Apps are started/stopped via HTTP:
 ```bash
 # List installed apps
-curl http://reachy-mini.local:8000/api/apps/list
+curl http://reachy-mini.local:8000/api/apps/list-available
 
 # Start an app
 curl -X POST http://reachy-mini.local:8000/api/apps/start-app/consent_agent_reachy
