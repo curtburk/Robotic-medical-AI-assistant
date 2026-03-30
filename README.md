@@ -15,7 +15,7 @@ The robot greets patients, listens to their symptoms, asks follow-up questions, 
 ┌──────────────────────┐         HTTP          ┌─────────────────────────────────────┐
 │     Reachy Mini      │ ◄──────────────────►  │       HP ZGX Nano (Docker)          │
 │                      │                        │                                     │
-│  Mic (ALSA) ─────────┤── POST /process ──────►│  faster-whisper (STT, CPU)          │
+│  Mic (ALSA) ─────────┤── POST /process ──────►│  whisper.cpp (STT, GPU)          │
 │                      │                        │  Llama-3.1-8B-Instruct-AWQ (LLM)   │
 │  Speaker ◄───────────┤◄── WAV response ──────│  Piper TTS (speech synthesis)       │
 │                      │                        │                                     │
